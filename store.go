@@ -22,7 +22,7 @@ type Store struct {
 	mu 		sync.Mutex
 }
 
-func NewStore(walPath string, password string) (*Store, error) {
+func NewStore(walPath string, password []byte) (*Store, error) {
 	file, err := os.OpenFile(walPath, os.O_RDWR | os.O_CREATE | os.O_APPEND, 0600)
 	if err != nil {
 		return nil, err

@@ -17,7 +17,7 @@ func TestStoreRoundtrip(t *testing.T) {
     password := "hunter2"
 
     // First session: write some data
-    s1, err := NewStore(walPath, password)
+    s1, err := NewStore(walPath, []byte(password))
     if err != nil {
         t.Fatalf("NewStore (first) failed: %v", err)
     }
@@ -30,7 +30,7 @@ func TestStoreRoundtrip(t *testing.T) {
     s1.Close()
 
     // Second session: same password should recover the data
-    s2, err := NewStore(walPath, password)
+    s2, err := NewStore(walPath, []byte(password))
     if err != nil {
         t.Fatalf("NewStore (second) failed: %v", err)
     }
@@ -50,14 +50,14 @@ func TestStoreRoundtrip(t *testing.T) {
 func TestStoreWrongPassword(t *testing.T) {
     walPath := tempWAL(t)
 
-    s1, err := NewStore(walPath, "correct-password")
+    s1, err := NewStore(walPath, []byte("correct-password"))
     if err != nil {
         t.Fatalf("NewStore (first) failed: %v", err)
     }
     s1.Set("secret", "value")
     s1.Close()
 
-    _, err = NewStore(walPath, "wrong-password")
+    _, err = NewStore(walPath, []byte("wrong-password"))
     if !errors.Is(err, ErrInvalidPassword) {
         t.Fatalf("NewStore with wrong password = %v, want ErrInvalidPassword", err)
     }
@@ -67,13 +67,13 @@ func TestStoreDeleteSurvivesRestart(t *testing.T) {
     walPath := tempWAL(t)
     password := "p"
 
-    s1, _ := NewStore(walPath, password)
+    s1, _ := NewStore(walPath, []byte(password))
     s1.Set("foo", "bar")
     s1.Set("baz", "qux")
     s1.Delete("foo")
     s1.Close()
 
-    s2, err := NewStore(walPath, password)
+    s2, err := NewStore(walPath, []byte(password))
     if err != nil {
         t.Fatalf("NewStore failed: %v", err)
     }
@@ -90,14 +90,14 @@ func TestStoreDeleteSurvivesRestart(t *testing.T) {
 func TestStoreFirstRunCreatesHeader(t *testing.T) {
     walPath := tempWAL(t)
 
-    s, err := NewStore(walPath, "p")
+    s, err := NewStore(walPath, []byte("p"))
     if err != nil {
         t.Fatalf("NewStore failed: %v", err)
     }
     s.Close()
 
     // Reopen — if header wasn't written correctly, this fails
-    if _, err := NewStore(walPath, "p"); err != nil {
+    if _, err := NewStore(walPath, []byte("p")); err != nil {
         t.Fatalf("reopen after first-run init failed: %v", err)
     }
 }
