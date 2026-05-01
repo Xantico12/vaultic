@@ -12,7 +12,7 @@ func main() {
 	scanner := bufio.NewScanner(os.Stdin)
 
 	fmt.Println("vaultic v0.1")
-	fmt.Println("commands: SET <key> <value> | GET <key> | DELETE <key | LIST | EXIT")
+	fmt.Println("commands: SET <key> <value> | GET <key> | DELETE <key> | LIST | EXIT")
 	fmt.Println()
 
 	for {
@@ -21,7 +21,10 @@ func main() {
 			break
 		}
 
-		line := scanner.Text()
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" {
+			continue
+		}
 		parts := strings.SplitN(line, " ", 3)
 		cmd := strings.ToUpper(parts[0])
 
@@ -60,7 +63,7 @@ func main() {
 			}
 
 		case "LIST":
-			if len(parts) == 0 {
+			if len(store) == 0 {
 				fmt.Println("(empty)")
 			} else {
 				for k, v := range store {
