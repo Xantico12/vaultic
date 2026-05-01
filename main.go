@@ -2,18 +2,34 @@ package main
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
+
+	"golang.org/x/term"
 )
 
 func main() {
-	store, err := NewStore("vaultic.wal")
+	fmt.Print("Master password: ")
+	pw, err := term.ReadPassword(int(os.Stdin.Fd()))
+	fmt.Println()
 	if err != nil {
+		fmt.Fprintln(os.Stderr, "fatal: could not read password:", err)
+		os.Exit(1)
+	}
+
+	store, err := NewStore("vaultic.wal", string(pw))
+	if err != nil {
+		if errors.Is(err, ErrInvalidPassword) {
+			fmt.Fprintln(os.Stderr, "Invalid password.")
+			os.Exit(1)
+		}
 		fmt.Fprintln(os.Stderr, "fatal:", err)
 		os.Exit(1)
 	}
 	defer store.Close()
+
 	scanner := bufio.NewScanner(os.Stdin)
 
 	fmt.Println("vaultic v0.1")

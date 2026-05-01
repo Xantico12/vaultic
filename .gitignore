@@ -17,3 +17,6 @@ vendor/
 # Editor
 .vscode/
 .idea/
+.prettierrc
+.prettierrc.*
+.prettierignore
