@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"fmt"
 	"io"
 	"os"
 	"strings"
@@ -52,5 +53,60 @@ func (s *Store) replay() error {
 			delete(s.data, parts[1])
 		}
 	}
-return scanner.Err()
+	return scanner.Err()
 } 
+
+func (s *Store) Set(key, value string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	entry := fmt.Sprintf("SET | %s | %s\n", key, value)
+	if _, err := s.walFile.WriteString(entry); err != nil {
+		return err
+	}
+	if err := s.walFile.Sync(); err != nil {
+		return err
+	}
+
+	s.data[key] = value
+	return nil
+}
+
+func (s *Store) Get(key string) (string, bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	val, ok := s.data[key]
+	return val, ok
+}
+
+func (s *Store) Delete(key, value string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	entry := fmt.Sprintf("DELETE | %s\n", key)
+	if _, err := s.walFile.WriteString(entry); err != nil {
+		return err
+	}
+	if err := s.walFile.Sync(); err != nil {
+		return err
+	}
+
+	delete(s.data, key)
+	return nil
+}
+
+func (s *Store) List() map[string]string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	out := make(map[string]string, len(s.data))
+	for k, v := range s.data {
+		out[k] = v
+	}
+	return out
+}
+
+func (s *Store) Close() error {
+	return s.walFile.Close()
+}
