@@ -19,7 +19,13 @@ func main() {
 		os.Exit(1)
 	}
 
-	store, err := NewStore("vaultic.wal", string(pw))
+	store, err := NewStore("vaultic.wal", pw)
+
+	// Zero the password — derived key lives in store.key now, original is no longer needed.
+	for i := range pw {
+		pw[i] = 0
+	}
+	
 	if err != nil {
 		if errors.Is(err, ErrInvalidPassword) {
 			fmt.Fprintln(os.Stderr, "Invalid password.")
