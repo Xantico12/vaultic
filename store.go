@@ -60,7 +60,7 @@ func (s *Store) Set(key, value string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	entry := fmt.Sprintf("SET | %s | %s\n", key, value)
+	entry := fmt.Sprintf("SET|%s|%s\n", key, value)
 	if _, err := s.walFile.WriteString(entry); err != nil {
 		return err
 	}
@@ -80,11 +80,11 @@ func (s *Store) Get(key string) (string, bool) {
 	return val, ok
 }
 
-func (s *Store) Delete(key, value string) error {
+func (s *Store) Delete(key string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	entry := fmt.Sprintf("DELETE | %s\n", key)
+	entry := fmt.Sprintf("DELETE|%s\n", key)
 	if _, err := s.walFile.WriteString(entry); err != nil {
 		return err
 	}

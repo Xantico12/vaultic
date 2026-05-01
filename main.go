@@ -8,7 +8,12 @@ import (
 )
 
 func main() {
-	store := make(map[string]string)
+	store, err := NewStore("vaultic.wal")
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "fatal:", err)
+		os.Exit(1)
+	}
+	defer store.Close()
 	scanner := bufio.NewScanner(os.Stdin)
 
 	fmt.Println("vaultic v0.1")
@@ -34,7 +39,10 @@ func main() {
 				fmt.Println("usage: SET <key> <value>")
 				continue
 			}
-			store[parts[1]] = parts[2]
+			if err := store.Set(parts[1], parts[2]); err != nil {
+				fmt.Println("ERR:", err)
+				continue
+			}
 			fmt.Println("OK")
 
 		case "GET":
@@ -42,7 +50,7 @@ func main() {
 				fmt.Println("usage: GET <key>")
 				continue
 			}
-			val, exists := store[parts[1]]
+			val, exists := store.Get(parts[1])
 			if !exists {
 				fmt.Println("ERR: Key not found")
 			} else {
@@ -54,19 +62,22 @@ func main() {
 				fmt.Println("usage: DELETE <key>")
 				continue
 			}
-			_, exists := store[parts[1]]
-			if !exists {
+			if _, exists := store.Get(parts[1]); !exists {
 				fmt.Println("ERR: Key not found")
-			} else {
-				delete(store, parts[1])
-				fmt.Println("OK")
+				continue
 			}
+			if err := store.Delete(parts[1]); err != nil {
+				fmt.Println("ERR:", err)
+				continue
+			}
+			fmt.Println("OK")
 
 		case "LIST":
-			if len(store) == 0 {
+			items := store.List()
+			if len(items) == 0 {
 				fmt.Println("(empty)")
 			} else {
-				for k, v := range store {
+				for k, v := range items {
 					fmt.Printf(" %s = %s\n", k, v)
 				}
 			}

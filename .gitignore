@@ -1,1 +1,19 @@
+# Binary
 vaultic
+
+# Data
+vaultic.wal
+
+# Test artifacts
+*.test
+coverage.out
+
+# Go module proxy / cache (rare but happens)
+vendor/
+
+# OS junk
+.DS_Store
+
+# Editor
+.vscode/
+.idea/
