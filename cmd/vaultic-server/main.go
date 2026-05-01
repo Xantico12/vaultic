@@ -8,6 +8,8 @@ import (
 	"strings"
 
 	"golang.org/x/term"
+
+	"github.com/Xantico12/vaultic/pkg/vault"
 )
 
 func main() {
@@ -19,7 +21,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	store, err := NewStore("vaultic.wal", pw)
+	store, err := vault.NewStore("vaultic.wal", pw)
 
 	// Zero the password — derived key lives in store.key now, original is no longer needed.
 	for i := range pw {
@@ -27,7 +29,7 @@ func main() {
 	}
 	
 	if err != nil {
-		if errors.Is(err, ErrInvalidPassword) {
+		if errors.Is(err, vault.ErrInvalidPassword) {
 			fmt.Fprintln(os.Stderr, "Invalid password.")
 			os.Exit(1)
 		}
