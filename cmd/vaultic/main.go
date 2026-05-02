@@ -121,7 +121,7 @@ func cmdList(args []string) error {
 func cmdExport(args []string) error {
     fs := flag.NewFlagSet("export", flag.ExitOnError)
     format := fs.String("format", "env", "output format: env | json")
-    fs.Parse(args)
+    fs.Parse(permuteArgs(args))
 
     rest := fs.Args()
     if len(rest) != 1 {
@@ -198,7 +198,7 @@ func cmdImport(args []string) error {
     fs := flag.NewFlagSet("import", flag.ExitOnError)
     namespace := fs.String("namespace", "", "namespace prefix for imported keys (required)")
     force := fs.Bool("force", false, "overwrite existing keys")
-    fs.Parse(args)
+    fs.Parse(permuteArgs(args))
 
     rest := fs.Args()
     if len(rest) != 1 {
@@ -384,4 +384,32 @@ func runREPL() {
         }
         fmt.Println(resp)
     }
+}
+
+// permuteArgs moves flag-looking args ahead of positional ones, so that
+// `subcmd positional --flag value` parses the same as `subcmd --flag value positional`.
+//
+// A flag is anything starting with "-". For flags that consume a value
+// (the next arg, when it doesn't itself look like a flag), the value
+// is moved alongside the flag.
+func permuteArgs(args []string) []string {
+    var flags, positionals []string
+    for i := 0; i < len(args); i++ {
+        a := args[i]
+        if !strings.HasPrefix(a, "-") {
+            positionals = append(positionals, a)
+            continue
+        }
+        flags = append(flags, a)
+        // If this flag is in --flag=value form, no extra value to grab.
+        if strings.Contains(a, "=") {
+            continue
+        }
+        // Otherwise pull the next arg as the value if it looks like one.
+        if i+1 < len(args) && !strings.HasPrefix(args[i+1], "-") {
+            i++
+            flags = append(flags, args[i])
+        }
+    }
+    return append(flags, positionals...)
 }
