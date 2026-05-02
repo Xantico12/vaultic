@@ -49,7 +49,7 @@ func main() {
     defer stop()
 
     server := protocol.NewServer(store)
-    if err := server.Serve(ctx, addr); err != nil {
+    if err := server.Serve(ctx, addr, nil); err != nil {
         fmt.Fprintln(os.Stderr, "server error:", err)
         os.Exit(1)
     }

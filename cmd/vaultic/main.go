@@ -99,7 +99,7 @@ func cmdList(args []string) error {
         return fmt.Errorf("usage: vaultic list [<prefix>]")
     }
 
-    client, err := protocol.Dial(serverAddr)
+    client, err := protocol.Dial(serverAddr, nil)
     if err != nil {
         return err
     }
@@ -130,7 +130,7 @@ func cmdExport(args []string) error {
     namespace := rest[0]
 
     // Fetch all keys with the namespace prefix.
-    client, err := protocol.Dial(serverAddr)
+    client, err := protocol.Dial(serverAddr, nil)
     if err != nil {
         return err
     }
@@ -236,7 +236,7 @@ func cmdImport(args []string) error {
 		}
 	}
 
-    client, err := protocol.Dial(serverAddr)
+    client, err := protocol.Dial(serverAddr, nil)
     if err != nil {
         return err
     }
@@ -301,7 +301,7 @@ func cmdImport(args []string) error {
 
 // sendOneShot connects, sends one command, prints the single-line response.
 func sendOneShot(line string) error {
-    client, err := protocol.Dial(serverAddr)
+    client, err := protocol.Dial(serverAddr, nil)
     if err != nil {
         return err
     }
@@ -332,7 +332,7 @@ func sendOneShot(line string) error {
 // runREPL opens one persistent connection and loops reading commands from
 // stdin, sending them to the server, and printing the response.
 func runREPL() {
-    client, err := protocol.Dial(serverAddr)
+    client, err := protocol.Dial(serverAddr, nil)
     if err != nil {
         fmt.Fprintln(os.Stderr, "fatal:", err)
         os.Exit(1)

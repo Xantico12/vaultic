@@ -2,6 +2,7 @@ package protocol
 
 import (
 	"bufio"
+	"crypto/tls"
 	"fmt"
 	"net"
 	"strings"
@@ -16,11 +17,17 @@ type Client struct {
 }
 
 // Dial opens a connection to a vaultic server at addr.
-func Dial(addr string) (*Client, error) {
-	conn, err := net.Dial("tcp", addr)
-	if err != nil {
-		return nil, fmt.Errorf("dial %s: %w", addr, err)
-	}
+func Dial(addr string, tlsConfig *tls.Config) (*Client, error) {
+    var conn net.Conn
+    var err error
+    if tlsConfig != nil {
+        conn, err = tls.Dial("tcp", addr, tlsConfig)
+    } else {
+        conn, err = net.Dial("tcp", addr)
+    }
+    if err != nil {
+        return nil, fmt.Errorf("dial %s: %w", addr, err)
+    }
 	return &Client{
 		conn:	conn,
 		reader:	bufio.NewReader(conn),

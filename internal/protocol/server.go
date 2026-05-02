@@ -3,6 +3,7 @@ package protocol
 import (
 	"bufio"
 	"context"
+	"crypto/tls"
 	"fmt"
 	"net"
 	"os"
@@ -25,8 +26,14 @@ func NewServer(store *vault.Store) *Server {
 
 // Serve listens on addr and handles connections until ctx is cancelled.
 // Blocks until the listener closes and all in-flight handlers finish.
-func (s *Server) Serve(ctx context.Context, addr string) error {
-    listener, err := net.Listen("tcp", addr)
+func (s *Server) Serve(ctx context.Context, addr string, tlsConfig *tls.Config) error {
+    var listener net.Listener
+    var err error
+    if tlsConfig != nil {
+        listener, err = tls.Listen("tcp", addr, tlsConfig)
+    } else {
+        listener, err = net.Listen("tcp", addr)
+    }
     if err != nil {
         return fmt.Errorf("listen on %s: %w", addr, err)
     }
