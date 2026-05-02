@@ -1,5 +1,6 @@
-# Binary
-vaultic
+# Binaries
+/vaultic
+/vaultic-server
 
 # Data
 vaultic.wal
