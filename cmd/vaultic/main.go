@@ -2,11 +2,14 @@ package main
 
 import (
 	"bufio"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
+	"sort"
 	"strings"
 
+	"github.com/Xantico12/vaultic/internal/dotenv"
 	"github.com/Xantico12/vaultic/internal/protocol"
 )
 
@@ -126,27 +129,174 @@ func cmdExport(args []string) error {
     }
     namespace := rest[0]
 
-    _ = format     // wired in step 4
-    _ = namespace
-    return fmt.Errorf("export: not implemented yet")
+    // Fetch all keys with the namespace prefix.
+    client, err := protocol.Dial(serverAddr)
+    if err != nil {
+        return err
+    }
+    defer client.Close()
+
+    if err := client.Send("LIST " + namespace + ":"); err != nil {
+        return err
+    }
+    rows, err := client.ReadUntilEnd()
+    if err != nil {
+        return err
+    }
+
+    // Strip the namespace prefix and uppercase the key part.
+    // "openclaw:telegram_token=abc" -> "TELEGRAM_TOKEN" -> "abc"
+    out := make(map[string]string, len(rows))
+    prefix := namespace + ":"
+    for _, row := range rows {
+        eq := strings.IndexByte(row, '=')
+        if eq < 0 {
+            return fmt.Errorf("malformed LIST row: %q", row)
+        }
+        fullKey := row[:eq]
+        value := row[eq+1:]
+        if !strings.HasPrefix(fullKey, prefix) {
+            // shouldn't happen — server filters — but defensive
+            continue
+        }
+        bareKey := strings.ToUpper(strings.TrimPrefix(fullKey, prefix))
+        out[bareKey] = value
+    }
+
+    if len(out) == 0 {
+        return fmt.Errorf("no keys found for namespace %q", namespace)
+    }
+
+    switch *format {
+    case "env":
+        fmt.Print(dotenv.Encode(out))
+    case "json":
+        // Sort keys for deterministic output.
+        keys := make([]string, 0, len(out))
+        for k := range out {
+            keys = append(keys, k)
+        }
+        sort.Strings(keys)
+
+        ordered := make(map[string]string, len(out))
+        for _, k := range keys {
+            ordered[k] = out[k]
+        }
+        b, err := json.MarshalIndent(ordered, "", "  ")
+        if err != nil {
+            return err
+        }
+        fmt.Println(string(b))
+    default:
+        return fmt.Errorf("unknown format %q (want env or json)", *format)
+    }
+
+    return nil
 }
 
 func cmdImport(args []string) error {
     fs := flag.NewFlagSet("import", flag.ExitOnError)
-    namespace := fs.String("namespace", "", "namespace prefix for imported keys")
+    namespace := fs.String("namespace", "", "namespace prefix for imported keys (required)")
     force := fs.Bool("force", false, "overwrite existing keys")
     fs.Parse(args)
 
     rest := fs.Args()
     if len(rest) != 1 {
-        return fmt.Errorf("usage: vaultic import <file> [--namespace <ns>] [--force]")
+        return fmt.Errorf("usage: vaultic import <file> --namespace <ns> [--force]")
+    }
+    if *namespace == "" {
+        return fmt.Errorf("--namespace is required")
     }
     file := rest[0]
 
-    _ = namespace  // wired in step 4
-    _ = force
-    _ = file
-    return fmt.Errorf("import: not implemented yet")
+    f, err := os.Open(file)
+    if err != nil {
+        return err
+    }
+    defer f.Close()
+
+    parsed, err := dotenv.Decode(f)
+    if err != nil {
+        return fmt.Errorf("parse %s: %w", file, err)
+    }
+    if len(parsed) == 0 {
+        return fmt.Errorf("no keys to import from %s", file)
+    }
+
+    // Build the namespaced key map: TELEGRAM_TOKEN -> openclaw:telegram_token
+    target := make(map[string]string, len(parsed))
+    for k, v := range parsed {
+        target[*namespace+":"+strings.ToLower(k)] = v
+    }
+
+	// Reject newline-containing values until the protocol supports them.
+	for k, v := range target {
+		if strings.ContainsAny(v, "\r\n") {
+			return fmt.Errorf("value for %s contains newline — not supported by current protocol", k)
+		}
+	}
+
+    client, err := protocol.Dial(serverAddr)
+    if err != nil {
+        return err
+    }
+    defer client.Close()
+
+    // First pass: check for collisions unless --force.
+    if !*force {
+        var collisions []string
+        for k := range target {
+            if err := client.Send("GET " + k); err != nil {
+                return err
+            }
+            resp, err := client.ReadLine()
+            if err != nil {
+                return err
+            }
+            if strings.HasPrefix(resp, "VALUE ") {
+                collisions = append(collisions, k)
+            }
+        }
+        if len(collisions) > 0 {
+            sort.Strings(collisions)
+            return fmt.Errorf("%d key(s) already exist (use --force to overwrite):\n  %s",
+                len(collisions), strings.Join(collisions, "\n  "))
+        }
+    }
+
+    // Second pass: write everything.
+    var overwritten int
+    for k, v := range target {
+        if *force {
+            // Track whether we're overwriting for the summary.
+            if err := client.Send("GET " + k); err != nil {
+                return err
+            }
+            resp, _ := client.ReadLine()
+            if strings.HasPrefix(resp, "VALUE ") {
+                overwritten++
+            }
+        }
+
+        if err := client.Send("SET " + k + " " + v); err != nil {
+            return err
+        }
+        resp, err := client.ReadLine()
+        if err != nil {
+            return err
+        }
+        if !strings.HasPrefix(resp, "OK") {
+            return fmt.Errorf("server rejected SET %s: %s", k, resp)
+        }
+    }
+
+    if overwritten > 0 {
+        fmt.Printf("imported %d keys into namespace %s (%d overwritten)\n",
+            len(target), *namespace, overwritten)
+    } else {
+        fmt.Printf("imported %d keys into namespace %s\n", len(target), *namespace)
+    }
+    return nil
 }
 
 // sendOneShot connects, sends one command, prints the single-line response.
