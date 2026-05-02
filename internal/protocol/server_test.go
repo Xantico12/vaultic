@@ -211,3 +211,43 @@ func TestServerGracefulShutdown(t *testing.T) {
         t.Fatal("Serve didn't return within 2s of cancel()")
     }
 }
+
+func TestServerListPrefix(t *testing.T) {
+    addr, cleanup := startTestServer(t)
+    defer cleanup()
+
+    sendCommand(t, addr, "SET openclaw:a 1")
+    sendCommand(t, addr, "SET openclaw:b 2")
+    sendCommand(t, addr, "SET adpulse:c 3")
+
+    conn, err := net.Dial("tcp", addr)
+    if err != nil {
+        t.Fatalf("Dial: %v", err)
+    }
+    defer conn.Close()
+
+    conn.Write([]byte("LIST openclaw:\n"))
+
+    reader := bufio.NewReader(conn)
+    var lines []string
+    for {
+        line, err := reader.ReadString('\n')
+        if err != nil {
+            t.Fatalf("ReadString: %v", err)
+        }
+        line = strings.TrimRight(line, "\r\n")
+        if line == "END" {
+            break
+        }
+        lines = append(lines, line)
+    }
+
+    if len(lines) != 2 {
+        t.Errorf("got %d lines for prefix openclaw:, want 2: %v", len(lines), lines)
+    }
+    for _, line := range lines {
+        if !strings.Contains(line, "openclaw:") {
+            t.Errorf("non-namespace line slipped through filter: %q", line)
+        }
+    }
+}

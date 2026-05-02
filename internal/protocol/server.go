@@ -132,9 +132,15 @@ func (s *Server) dispatch(line string, w *bufio.Writer) {
         fmt.Fprintln(w, "OK")
 
     case "LIST":
+        var prefix string
+        if len(parts) >= 2 {
+            prefix = parts[1]
+        }
         items := s.store.List()
         for k, v := range items {
-            fmt.Fprintf(w, "VALUE %s=%s\n", k, v)
+            if prefix == "" || strings.HasPrefix(k, prefix) {
+                fmt.Fprintf(w, "VALUE %s=%s\n", k, v)
+            }
         }
         fmt.Fprintln(w, "END")
 
