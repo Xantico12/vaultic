@@ -21,3 +21,7 @@ vendor/
 .prettierrc
 .prettierrc.*
 .prettierignore
+
+# TLS material — generated on first run, regenerated if missing
+/vaultic.cert
+/vaultic.key
