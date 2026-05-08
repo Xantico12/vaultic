@@ -21,3 +21,13 @@ vendor/
 .prettierrc
 .prettierrc.*
 .prettierignore
+
+# TLS material — generated on first run, regenerated if missing
+/vaultic.cert
+/vaultic.key
+
+# Token registry — contains only hashes but still per-vault state, never commit
+/vaultic.tokens
+
+# Audit log — per-vault state
+/vaultic.audit
