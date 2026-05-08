@@ -16,11 +16,18 @@ import (
 type Server struct {
     store *vault.Store
     wg    sync.WaitGroup
+
+    connsMu  sync.Mutex
+    conns    map[net.Conn]struct{}
+    shutdown bool
 }
 
 // NewServer creates a new TCP protocol server backed by the given Store.
 func NewServer(store *vault.Store) *Server {
-    return &Server{store: store}
+    return &Server{
+        store: store,
+        conns: make(map[net.Conn]struct{}),
+    }
 }
 
 // Serve listens on addr and handles connections until ctx is cancelled.
@@ -31,10 +38,18 @@ func (s *Server) Serve(ctx context.Context, addr string) error {
         return fmt.Errorf("listen on %s: %w", addr, err)
     }
 
-    // When ctx is cancelled, close the listener to unblock Accept below.
+    // When ctx is cancelled, atomically: mark shutdown, close listener,
+    // close every active conn. The shutdown flag prevents new conns
+    // accepted after this point from being launched into handlers.
     go func() {
         <-ctx.Done()
+        s.connsMu.Lock()
+        s.shutdown = true
         listener.Close()
+        for c := range s.conns {
+            c.Close()
+        }
+        s.connsMu.Unlock()
     }()
 
     fmt.Fprintln(os.Stderr, "vaultic-server listening on", addr)
@@ -51,6 +66,19 @@ func (s *Server) Serve(ctx context.Context, addr string) error {
             continue
         }
 
+        // Register the conn (or immediately close if we're already shutting down).
+        // Doing this in Serve under the lock — atomically with the shutdown
+        // close-all-conns loop — closes the race where a conn accepted just
+        // before cancel() could miss the close pass.
+        s.connsMu.Lock()
+        if s.shutdown {
+            s.connsMu.Unlock()
+            conn.Close()
+            continue
+        }
+        s.conns[conn] = struct{}{}
+        s.connsMu.Unlock()
+
         s.wg.Add(1)
         go func() {
             defer s.wg.Done()
@@ -64,8 +92,15 @@ func (s *Server) Serve(ctx context.Context, addr string) error {
 
 // handleConnection reads commands line-by-line from conn, executes them,
 // and writes responses. Returns when the client disconnects or ctx is done.
+// The conn is already registered in s.conns by Serve before this is called;
+// this function only unregisters on exit.
 func (s *Server) handleConnection(ctx context.Context, conn net.Conn) {
-	defer conn.Close()
+	defer func() {
+		s.connsMu.Lock()
+		delete(s.conns, conn)
+		s.connsMu.Unlock()
+		conn.Close()
+	}()
 
 	scanner := bufio.NewScanner(conn)
 	writer := bufio.NewWriter(conn)
