@@ -1,5 +1,9 @@
 # Vaultic
 
+[![CI](https://github.com/Xantico12/vaultic/actions/workflows/ci.yml/badge.svg)](https://github.com/Xantico12/vaultic/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
+[![Go Version](https://img.shields.io/github/go-mod/go-version/Xantico12/vaultic)](./go.mod)
+
 > A self-hosted encrypted key-value store written in Go. Replace scattered `.env` files with a single vault you run on your own machine.
 
 WAL-backed persistence, AES-256-GCM at rest, TLS 1.3 transport. Token auth and audit logging are in progress - see [Current status](#current-status) below.
