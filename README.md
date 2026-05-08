@@ -257,7 +257,8 @@ Until then, the server trusts any TLS connection from a client that holds the pi
 go test -race ./...
 ```
 
-All packages have unit + integration tests. Race-detector clean. The TCP server tests spin up a real listener on a random port and exercise the wire protocol end to end, including TLS handshake and untrusted-cert rejection.
+Library packages (pkg/vault, internal/dotenv, internal/protocol) have unit and integration tests; the cmd/ entry points are thin wrappers around tested code. Race-detector clean. The TCP server tests spin up a real listener on a random port and exercise the wire protocol end to end, including TLS handshake and untrusted-cert rejection.
+
 
 ## What I learned
 
