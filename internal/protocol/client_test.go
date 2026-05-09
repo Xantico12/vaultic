@@ -9,7 +9,7 @@ func TestClientSetGet(t *testing.T) {
     addr, cleanup := startTestServer(t)
     defer cleanup()
 
-    client, err := Dial(addr)
+    client, err := Dial(addr, nil)
     if err != nil {
         t.Fatalf("Dial: %v", err)
     }
@@ -34,7 +34,7 @@ func TestClientList(t *testing.T) {
     addr, cleanup := startTestServer(t)
     defer cleanup()
 
-    client, _ := Dial(addr)
+    client, _ := Dial(addr, nil)
     defer client.Close()
 
     client.Send("SET a 1")
@@ -67,7 +67,7 @@ func TestClientNotFound(t *testing.T) {
     addr, cleanup := startTestServer(t)
     defer cleanup()
 
-    client, _ := Dial(addr)
+    client, _ := Dial(addr, nil)
     defer client.Close()
 
     client.Send("GET missing")
@@ -81,7 +81,7 @@ func TestClientPersistentConnection(t *testing.T) {
     addr, cleanup := startTestServer(t)
     defer cleanup()
 
-    client, _ := Dial(addr)
+    client, _ := Dial(addr, nil)
     defer client.Close()
 
     // Send 50 commands over the same connection — equivalent to REPL mode.
@@ -97,7 +97,7 @@ func TestClientReadUntilEndOnError(t *testing.T) {
     addr, cleanup := startTestServer(t)
     defer cleanup()
 
-    client, _ := Dial(addr)
+    client, _ := Dial(addr, nil)
     defer client.Close()
 
     // GET returns a single VALUE/ERR line — using ReadUntilEnd against it
@@ -110,7 +110,7 @@ func TestClientReadUntilEndOnError(t *testing.T) {
 
 func TestClientDialRefused(t *testing.T) {
     // 127.0.0.1:1 is reserved and nothing should be listening.
-    if _, err := Dial("127.0.0.1:1"); err == nil {
+    if _, err := Dial("127.0.0.1:1", nil); err == nil {
         t.Error("Dial to dead address should have errored")
     }
 }
