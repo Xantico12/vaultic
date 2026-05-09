@@ -2,7 +2,10 @@ package main
 
 import (
 	"bufio"
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
+	"encoding/pem"
 	"flag"
 	"fmt"
 	"os"
@@ -13,7 +16,45 @@ import (
 	"github.com/Xantico12/vaultic/internal/protocol"
 )
 
-const serverAddr = "127.0.0.1:7700"
+const (
+    serverAddr = "127.0.0.1:7700"
+    certPath   = "vaultic.cert"
+)
+
+// loadServerTLSConfig builds a tls.Config that trusts only the cert at
+// certPath. Self-signed certs aren't in any OS trust store, so we have
+// to add ours explicitly to the cert pool.
+func loadServerTLSConfig() (*tls.Config, error) {
+    pemData, err := os.ReadFile(certPath)
+    if err != nil {
+        return nil, fmt.Errorf("read %s: %w (run vaultic-server first to generate it)", certPath, err)
+    }
+    block, _ := pem.Decode(pemData)
+    if block == nil || block.Type != "CERTIFICATE" {
+        return nil, fmt.Errorf("%s does not contain a CERTIFICATE PEM block", certPath)
+    }
+    serverCert, err := x509.ParseCertificate(block.Bytes)
+    if err != nil {
+        return nil, fmt.Errorf("parse cert: %w", err)
+    }
+
+    pool := x509.NewCertPool()
+    pool.AddCert(serverCert)
+
+    return &tls.Config{
+        RootCAs:    pool,
+        ServerName: "localhost",   // must match a SAN on the cert
+        MinVersion: tls.VersionTLS13,
+    }, nil
+}
+
+func dialServer() (*protocol.Client, error) {
+    tlsConfig, err := loadServerTLSConfig()
+    if err != nil {
+        return nil, err
+    }
+    return protocol.Dial(serverAddr, tlsConfig)
+}
 
 func main() {
     if len(os.Args) < 2 {
@@ -99,7 +140,7 @@ func cmdList(args []string) error {
         return fmt.Errorf("usage: vaultic list [<prefix>]")
     }
 
-    client, err := protocol.Dial(serverAddr)
+    client, err := dialServer()
     if err != nil {
         return err
     }
@@ -130,7 +171,7 @@ func cmdExport(args []string) error {
     namespace := rest[0]
 
     // Fetch all keys with the namespace prefix.
-    client, err := protocol.Dial(serverAddr)
+    client, err := dialServer()
     if err != nil {
         return err
     }
@@ -236,7 +277,7 @@ func cmdImport(args []string) error {
 		}
 	}
 
-    client, err := protocol.Dial(serverAddr)
+    client, err := dialServer()
     if err != nil {
         return err
     }
@@ -301,7 +342,7 @@ func cmdImport(args []string) error {
 
 // sendOneShot connects, sends one command, prints the single-line response.
 func sendOneShot(line string) error {
-    client, err := protocol.Dial(serverAddr)
+    client, err := dialServer()
     if err != nil {
         return err
     }
@@ -332,7 +373,7 @@ func sendOneShot(line string) error {
 // runREPL opens one persistent connection and loops reading commands from
 // stdin, sending them to the server, and printing the response.
 func runREPL() {
-    client, err := protocol.Dial(serverAddr)
+	client, err := dialServer()
     if err != nil {
         fmt.Fprintln(os.Stderr, "fatal:", err)
         os.Exit(1)

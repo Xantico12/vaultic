@@ -39,7 +39,7 @@ func startTestServer(t *testing.T) (addr string, cleanup func()) {
     wg.Add(1)
     go func() {
         defer wg.Done()
-        _ = server.Serve(ctx, addr)
+        _ = server.Serve(ctx, addr, nil)
     }()
 
     // Tiny pause to let the server bind. Better: poll-connect.
@@ -193,7 +193,7 @@ func TestServerGracefulShutdown(t *testing.T) {
 
     done := make(chan struct{})
     go func() {
-        server.Serve(ctx, addr)
+        server.Serve(ctx, addr, nil)
         close(done)
     }()
     waitUntilListening(t, addr)
