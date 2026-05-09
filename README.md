@@ -66,21 +66,21 @@ Hierarchical keys group by project (`openclaw:`, `gcp:`, `aws:`). Per-project ex
 ```mermaid
 flowchart LR
     subgraph laptop["Laptop / project machine"]
-        CLI["<b>vaultic</b><br/>CLI"]
+        CLI["<b>vaultic</b> CLI<br/>set / get / list / export"]
     end
-    subgraph host["Raspberry Pi 4 / Docker host"]
+    subgraph host["Server host (M8: Pi / Docker)"]
         Server["<b>vaultic-server</b><br/>TLS 1.3 listener"]
         WAL[("vaultic.wal<br/>encrypted WAL")]
         Tokens[("vaultic.tokens<br/>JSONL registry<br/><i>admin-CLI only<br/>(protocol AUTH WIP)</i>")]
         Audit[("vaultic.audit<br/><i>planned (M6)</i>")]
         Server --> WAL
-        Server -.->|admin CLI| Tokens
+        Server -.->|"vaultic-server token<br/>(admin mode)"| Tokens
         Server -.->|planned| Audit
     end
     CLI -->|"TLS 1.3"| Server
 ```
 
-Solid arrows are live data paths. Dashed arrows are admin-CLI-only or planned. The TLS layer and WAL are fully wired; the token registry exists on disk and via admin commands but the protocol does not yet enforce per-connection authentication.
+Solid arrows are live data paths; dashed arrows are admin-only or planned. AUTH protocol enforcement and audit logging land in M6; Pi / Docker deployment in M8.
 
 ## Quick start
 
